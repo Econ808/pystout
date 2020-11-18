@@ -5,7 +5,7 @@ import pandas as pd
 ### A generic function for writing tables to tex with some customization
 ################################################################################
 def tex_table(
-    df, file, addnotes=[], mgroups={}, title='', label='', 
+    df, file, addnotes=[], mgroups={}, title='', label='',tableopts='',
     options=pd.DataFrame(),footnotesize='footnotesize'):
     '''
 This function writes a table to file. The variable name column will just be the index of the dataframe provided. The column headers will be the column headers. The contents will be the contents of the table.
@@ -21,7 +21,7 @@ Options:
 
     mgroups: a dictionary that defines both the groups and what is in it. For example, mgroups={'Group 1':1,'Group 2':[2,5],'':[6,8]}. The keys are the group header (must be strings), and values are a list (corresponding to the min and max) or integer that defines the regression columns of group. You must specify a complete set of groups though you can define one as blank (as shown) this will cause that section to not have a header or a line underneath it.
 
-    title: A Latex table caption that will be shown at the top of the table. 
+    title: A Latex table caption that will be shown at the top of the table.
 
     label: A label to be used for refering to table in Latex, e.g. use \\ref{label} to refer to the table
 
@@ -55,18 +55,13 @@ Options:
         groupedcols += '\\\\'
         groupedlines = groupedlines[:-1]
 
-
-    header = '\n'.join(['\\begin{table}[H]',
-                        f'\caption{{{title}}}',
-                        f'\label{{{label}}}',
-                        '{',
+    header = '\n'.join(['{',
                         '\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\\fi}',
                         '\\begin{tabular}{@{\extracolsep{2pt}}l*{%i}{c}@{}}' %df.shape[1],
                         '\hline\hline',
                         groupedcols,
                         groupedlines,
                         ''])
-
 
     # Basic header, with symbolic command stolen from estout (of stata)
     # We do extra column spacing just in case there is grouping of variables (adds a space)
@@ -76,8 +71,18 @@ Options:
     if footnotes:
         footnotes = ('\\vspace{-.%iem} \\\\\n' %spacedict[footnotesize]).join(footnotes)
         footnotes = [footnotes]
-    footer = '\n'.join(['\hline\hline']+footnotes+['\end{tabular}','}','\end{table}'])
-    
+    footer = '\n'.join(['\hline\hline']+footnotes+['\end{tabular}','}'])
+
+    if title and label:
+        header = '\n'.join(['\\begin{table}[%s]' %tableopts,f'\caption{{{title}}}',
+                            f'\label{{{label}}}',header])
+    elif title and not label:
+        header = '\n'.join(['\\begin{table}[%s]' %tableopts,f'\caption{{{title}}}',header])
+    elif label and not title:
+        header = '\n'.join(['\\begin{table}[%s]' %tableopts,f'\label{{{label}}}',header])
+
+    if title or label:
+        footer += '\n\end{table}'
 
 
     ###########################################################################
@@ -125,7 +130,7 @@ Options:
 def pystout(models, file, exogvars=None, endog_names=False,
             stars={.1:'+',.05:'*',.01:'**'}, varlabels=None,
             digits=2, scientific_notation=False, mgroups={},
-            addnotes=[], addrows={}, title='', label='',
+            addnotes=[], addrows={}, title='', label='',tableopts='',
             modstat={
                 'nobs':'N',
                 'fvalue':'F-stat',
@@ -137,7 +142,9 @@ def pystout(models, file, exogvars=None, endog_names=False,
             ):
     '''
 This function needs to read in the relevant statistics to populate the table.
-Then it needs to feed them to some version of tex_table
+Then it needs to feed them to some version of tex_table. If no label or title are specified a
+tabular object is returned. Otherwise, this tabular is wrapped in a table format for the title
+and label to be included.
 
 Inputs:
     models:         A list of models to print.
@@ -159,7 +166,7 @@ Inputs:
 
     digits:         Number of digits to round all items to (default=2).
 
-    scientific_notation: 
+    scientific_notation:
                     If True scientific notation will be used if value is less than 10**(-digits)
 
     modstat:        You can add custom options from sm (F-stat, R-squared, Adjusted R-Squared)
@@ -184,9 +191,11 @@ Inputs:
     footnotesize:   Currently accepts 'footnotesize' or 'scriptsize' or 'tiny'.
                     Automatically compresses vertical space between separate footnotes.
 
-    title: A Latex table caption that will be shown at the top of the table. 
+    title:          A Latex table caption that will be shown at the top of the table.
 
-    label: A label to be used for refering to table in Latex, e.g. use \\ref{label} to refer to the table
+    label:          A label to be used for referring to table in Latex, e.g. use \\ref{label} to refer to the table
+
+    tableopts:      The options declared for the table as in \begin{table}[tableopts]
 
 
 Output:
@@ -357,4 +366,5 @@ Output:
         options = pd.DataFrame()
 
     # Run the code to update the table
-    tex_table(df=df,file=file,addnotes=addnotes,mgroups=mgroups,title=title,label=label,options=options,footnotesize=footnotesize)
+    tex_table(df=df,file=file,addnotes=addnotes,mgroups=mgroups,title=title,label=label,
+                tableopts=tableopts,options=options,footnotesize=footnotesize)
